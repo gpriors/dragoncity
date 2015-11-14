@@ -119,3 +119,4 @@ for (i in 1:varlength) {
     aucs <- rbind(aucs, list(auc, as.character(model.formula)[3]))
   }
 }
+
