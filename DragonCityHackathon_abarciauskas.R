@@ -38,18 +38,11 @@ write.table(predictions.baseline, 'baseline_submission.csv', row.names=F, quote=
 # of just relying on the public leaderboard feedback
 
 # You can use the auc function of the pROC package for it
-
-install.packages("ROCR")
-library(ROCR)
-ROCRpred = prediction(predictions, train$churn)
-as.numeric(performance(ROCRpred, "auc")@y.values)
-
 soft.threshold <- function(x,lambda){
   sign(x) * max(c(abs(x) - lambda , 0))
 }
 
-lasso.reg <- function(y, X, lambda) {
-  max.iter <- 10
+lasso.reg <- function(y, X, lambda, max.iter) {
   # Number of explanatory variables
   P <- ncol(X)
 
@@ -80,17 +73,49 @@ lasso.reg <- function(y, X, lambda) {
   beta
 }
 
+library(ROCR)
+
 # X are all the variables we include in the regression
 # y is churn
 vars <- c('num_sessions', 'played_day2', 'breedings', 'has_login_error', 'reach_lvl_3', 'lvl_ups', 'attacks', 'device_group', 'device_age')
 X <- dragoncity_hackathon_train[,vars]
 X <- model.matrix(~., data =X)
 y <- dragoncity_hackathon_train[,'churn']
-lambda <- 0.1
+lambda.range <- seq(0,1,0.05)
 
-lasso.coefs <- lasso.reg(y, X, lambda)
-predictions <- inv.logit(X%*%lasso.coefs)
+aucs <- matrix(ncol=2, dimnames = list(1, c('auc', 'lambda')))
 
-library(ROCR)
-ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
-as.numeric(performance(ROCRpred, "auc")@y.values)
+for (lambda in lambda.range) {
+  print(paste0('lambda = ', lambda))
+  lasso.coefs <- lasso.reg(y, X, lambda, 100)
+  res <- X%*%lasso.coefs
+  predictions <- inv.logit(res)
+  ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
+  auc <- as.numeric(performance(ROCRpred, "auc")@y.values)
+  print(paste0('auc = ', auc))
+
+  if (i == 1) {
+    aucs[i,] <- list(auc, lambda)
+  } else {
+    aucs <- rbind(aucs, list(auc, lambda))
+  }
+}
+
+
+varlength <- length(vars)
+aucs <- matrix(ncol=2, dimnames = list(1, c('auc', 'model')))
+
+for (i in 1:varlength) {
+  vars_subset <- vars[setdiff(1:varlength,i)]
+  model.formula <- formula(paste("churn ~", paste(vars_subset, collapse = "+")))
+  modelfit <- glm(model.formula, data=dragoncity_hackathon_train,family=binomial())
+  predictions <- predict(modelfit, newdata = dragoncity_hackathon_train, type = "response")
+  ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
+  auc <- as.numeric(performance(ROCRpred, "auc")@y.values)
+
+  if (i == 1) {
+    aucs[i,] <- list(auc, as.character(model.formula)[3])
+  } else {
+    aucs <- rbind(aucs, list(auc, as.character(model.formula)[3]))
+  }
+}
