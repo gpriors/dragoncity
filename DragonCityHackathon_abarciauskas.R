@@ -65,7 +65,9 @@ lasso.reg <- function(y, X, lambda, max.iter) {
 
       # cov/var is just the least squares kth coefficient
       beta[i] <- soft.threshold(cov/var , lambda/(2*var))
-      if (sum((beta - beta.prev)**2) < 1e-6) { return(beta) }
+      print(paste('beta is', beta))
+      print(paste('beta.prev is', beta.prev))
+      if (!is.na(beta) & !is.na(beta.prev) & (sum((beta - beta.prev)**2) < 1e-6)) { return(beta) }
 
       beta.prev <- beta
   }
@@ -75,19 +77,57 @@ lasso.reg <- function(y, X, lambda, max.iter) {
 
 library(ROCR)
 
-# X are all the variables we include in the regression
-# y is churn
-vars <- c('num_sessions', 'played_day2', 'breedings', 'has_login_error', 'reach_lvl_3', 'lvl_ups', 'attacks', 'device_group', 'device_age')
+
+vars <- c("payer", "num_sessions",
+"max_level_reached", "reach_lvl_3", "cash_spent",   
+"spents",  "dollar_gross", "transactions", 
+"dragons_lvl_up","lvl_ups", "breedings", "login_errors", 
+"has_login_error", "number_dragons","facebook_connected", 
+"number_goals", "played_day2", "attacks",
+"attacks_wins", "last_cash",  "last_food", 
+"last_gold", "dragons_bought","has_dragons_bought", 
+"num_sessions_1d", "num_sessions_2d")
+
 X <- dragoncity_hackathon_train[,vars]
 X <- model.matrix(~., data =X)
 y <- dragoncity_hackathon_train[,'churn']
-lambda.range <- seq(0,1,0.05)
 
+
+lambda <- 8
+lasso.coefs <- lasso.reg(y, X, lambda, 1000)
+res <- X%*%lasso.coefs
+predictions <- inv.logit(res)
+ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
+auc <- as.numeric(performance(ROCRpred, "auc")@y.values)
+
+# Remove vars abs(val) < 0.01
+lasso.results <- cbind(colnames(X), lasso.coefs)
+lasso.results.subset <- subset(lasso.results, abs(lasso.coefs) > 0.009999)
+vars <- subset(lasso.results, abs(lasso.coefs) > 0.009999)[,1]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#lambda.range <- append(seq(0,1,0.05), seq(0,10,1))
+lambda.range <- seq(0,10,1)
 aucs <- matrix(ncol=2, dimnames = list(1, c('auc', 'lambda')))
 
 for (lambda in lambda.range) {
   print(paste0('lambda = ', lambda))
-  lasso.coefs <- lasso.reg(y, X, lambda, 100)
+  lasso.coefs <- lasso.reg(y, X, lambda, 10)
   res <- X%*%lasso.coefs
   predictions <- inv.logit(res)
   ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
@@ -102,6 +142,7 @@ for (lambda in lambda.range) {
 }
 
 
+vars <- c("log_num_sessions","played_day2","is_marketing_install","has_cs_ticket","dragons_lvl_up","breedings","has_login_error","number_goals","number_dragons","device_age","max_level_reached","dollar_gross","facebook_connected","attacks_wins","num_sessions_1d","has_dragons_bought","dragons_bought","last_cash","last_gold","last_food","reach_lvl_3","lvl_ups","attacks")
 varlength <- length(vars)
 aucs <- matrix(ncol=2, dimnames = list(1, c('auc', 'model')))
 
@@ -119,4 +160,6 @@ for (i in 1:varlength) {
     aucs <- rbind(aucs, list(auc, as.character(model.formula)[3]))
   }
 }
+
+# 0.7231925 => "num_sessions + reach_lvl_3 + cash_spent + spents + dollar_gross + transactions + lvl_ups + breedings + number_cs_ticket + has_cs_ticket + login_errors + has_login_error + number_dragons + facebook_connected + number_goals + played_day2 + attacks + attacks_wins + last_cash + last_food + last_gold + dragons_bought + has_dragons_bought + num_sessions_1d"
 

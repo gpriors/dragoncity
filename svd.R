@@ -11,7 +11,14 @@ reduce <- function(A,dim) {
     return(u%*%d%*%t(v))
 }
 
-X.svd <- svd(X)
+.svd <- svd(X)
 names(X.svd)
 
-plot(reduce(X.svd,1))
+plot(reduce(X,1))
+
+pca <- prcomp(dragoncity_hackathon_train[,vars],
+                 center = TRUE,
+                 scale. = TRUE)
+predictions <- predict(pca, newdata=dragoncity_hackathon_train)
+ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
+auc <- as.numeric(performance(ROCRpred, "auc")@y.values)

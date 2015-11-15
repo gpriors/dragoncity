@@ -11,10 +11,10 @@ dragoncity_hackathon_test <- read.csv(file="dragon_city_hackathon_test_final.csv
 
 ####################################################
 ## fit model
-modelfit <- glm(churn ~ num_sessions+played_day2
+modelfit <- glm(churn ~ num_sessions_2d+played_day2
                 +breedings+has_login_error
                 +reach_lvl_3+lvl_ups+attacks+device_group
-                +device_age,data=train,family=binomial())
+                +device_age,data=dragoncity_hackathon_train,family=binomial())
 summary(modelfit)
 
 modelfit2 <- randomForest()
@@ -37,5 +37,6 @@ auc(pred, real)
 
 install.packages("ROCR")
 library(ROCR)
-ROCRpred = prediction(predictions, train$churn)
+predictions <- predict(modelfit, newdata = dragoncity_hackathon_train, type = "response")
+ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
 as.numeric(performance(ROCRpred, "auc")@y.values)
