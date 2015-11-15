@@ -1,0 +1,37 @@
+results
+
+summary(sessions_model)
+
+Call:
+glm(formula = num_sessions ~ reach_lvl_3, family = poisson(), 
+    data = dragoncity_hackathon_train[, all.continuous.vars])
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.2153  -0.4757  -0.2245   0.1485  15.7884  
+
+Coefficients:
+            Estimate Std. Error z value Pr(>|z|)    
+(Intercept) 0.216426   0.001893   114.3   <2e-16 ***
+reach_lvl_3 0.795225   0.002190   363.1   <2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for poisson family taken to be 1)
+
+    Null deviance: 684912  on 524965  degrees of freedom
+Residual deviance: 537389  on 524964  degrees of freedom
+AIC: 1818172
+
+Number of Fisher Scoring iterations: 5
+
+modelfit <- glm(churn ~ num_sessions + max_level_reached, data = dragoncity_hackathon_train, family = binomial())
+
+predictions <- predict(modelfit, newdata = dragoncity_hackathon_train, type = "response")
+ROCRpred = prediction(predictions, dragoncity_hackathon_train$churn)
+(auc <- as.numeric(performance(ROCRpred, "auc")@y.values))
+
+summary(modelfit)
+
+matrix_levels <- matrix(NA, )
+levels <- unique(dragoncity_hackathon_train[,'max_level_reached'])
